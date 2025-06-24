@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,44 +7,56 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Eye, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Customer } from "./CustomerManager";
 
-const SalesManager = () => {
+interface SalesManagerProps {
+  customers: Customer[];
+  onUpdateCustomer: (customer: Customer) => void;
+}
+
+const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
   const [sales, setSales] = useState([
     {
       id: "INV-001",
       date: "2024-06-20",
-      customer: "ABC Corporation",
-      customerEmail: "contact@abc.com",
+      customerId: customers[0]?.id || "CUST-001",
+      customerName: customers[0]?.name || "ABC Corporation",
+      customerEmail: customers[0]?.email || "contact@abc.com",
       items: [
-        { name: "Product A", quantity: 5, rate: 100, amount: 500 },
-        { name: "Product B", quantity: 3, rate: 250, amount: 750 }
+        { name: "Product A", quantity: 5, rate: 10000, amount: 50000 },
+        { name: "Product B", quantity: 3, rate: 25000, amount: 75000 }
       ],
-      subtotal: 1250,
-      tax: 125,
-      total: 1375,
-      status: "paid"
+      subtotal: 125000,
+      tax: 12500,
+      total: 137500,
+      paidAmount: 122500,
+      outstandingAmount: 15000,
+      status: "partial"
     },
     {
-      id: "INV-002",
+      id: "INV-002", 
       date: "2024-06-19",
-      customer: "Tech Solutions Ltd",
-      customerEmail: "info@techsolutions.com",
+      customerId: customers[1]?.id || "CUST-002",
+      customerName: customers[1]?.name || "Tech Solutions Ltd",
+      customerEmail: customers[1]?.email || "info@techsolutions.com",
       items: [
-        { name: "Product C", quantity: 10, rate: 150, amount: 1500 },
-        { name: "Product D", quantity: 2, rate: 300, amount: 600 }
+        { name: "Product C", quantity: 10, rate: 15000, amount: 150000 },
+        { name: "Product D", quantity: 2, rate: 30000, amount: 60000 }
       ],
-      subtotal: 2100,
-      tax: 210,
-      total: 2310,
-      status: "pending"
+      subtotal: 210000,
+      tax: 21000,
+      total: 231000,
+      paidAmount: 231000,
+      outstandingAmount: 0,
+      status: "paid"
     }
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [newSale, setNewSale] = useState({
-    customer: "",
-    customerEmail: "",
-    items: [{ name: "", quantity: 1, rate: 0 }]
+    customerId: "",
+    items: [{ name: "", quantity: 1, rate: 0 }],
+    paidAmount: 0
   });
 
   const addItem = () => {
@@ -70,11 +81,17 @@ const SalesManager = () => {
 
   const createSale = () => {
     const { subtotal, tax, total } = calculateTotal();
+    const customer = customers.find(c => c.id === newSale.customerId);
+    if (!customer) return;
+
+    const outstandingAmount = total - newSale.paidAmount;
+    
     const sale = {
       id: `INV-${String(sales.length + 1).padStart(3, '0')}`,
       date: new Date().toISOString().split('T')[0],
-      customer: newSale.customer,
-      customerEmail: newSale.customerEmail,
+      customerId: newSale.customerId,
+      customerName: customer.name,
+      customerEmail: customer.email,
       items: newSale.items.map(item => ({
         ...item,
         amount: item.quantity * item.rate
@@ -82,19 +99,30 @@ const SalesManager = () => {
       subtotal,
       tax,
       total,
-      status: "pending"
+      paidAmount: newSale.paidAmount,
+      outstandingAmount,
+      status: outstandingAmount > 0 ? "partial" : "paid"
     };
     
     setSales([sale, ...sales]);
+
+    // Update customer's outstanding balance and total purchases
+    const updatedCustomer = {
+      ...customer,
+      totalPurchases: customer.totalPurchases + total,
+      outstandingBalance: customer.outstandingBalance + outstandingAmount
+    };
+    onUpdateCustomer(updatedCustomer);
+
     setNewSale({
-      customer: "",
-      customerEmail: "",
-      items: [{ name: "", quantity: 1, rate: 0 }]
+      customerId: "",
+      items: [{ name: "", quantity: 1, rate: 0 }],
+      paidAmount: 0
     });
   };
 
   const filteredSales = sales.filter(sale => 
-    sale.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sale.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -120,26 +148,20 @@ const SalesManager = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="customer">Customer Name</Label>
-                  <Input
-                    id="customer"
-                    value={newSale.customer}
-                    onChange={(e) => setNewSale({ ...newSale, customer: e.target.value })}
-                    placeholder="Enter customer name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customerEmail">Customer Email</Label>
-                  <Input
-                    id="customerEmail"
-                    type="email"
-                    value={newSale.customerEmail}
-                    onChange={(e) => setNewSale({ ...newSale, customerEmail: e.target.value })}
-                    placeholder="Enter customer email"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="saleCustomer">Select Customer</Label>
+                <Select value={newSale.customerId} onValueChange={(value) => setNewSale({ ...newSale, customerId: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-4">
@@ -171,7 +193,7 @@ const SalesManager = () => {
                       />
                     </div>
                     <div>
-                      <Label>Rate ($)</Label>
+                      <Label>Rate (₹)</Label>
                       <Input
                         type="number"
                         value={item.rate}
@@ -183,7 +205,7 @@ const SalesManager = () => {
                     <div>
                       <Label>Amount</Label>
                       <Input
-                        value={`$${(item.quantity * item.rate).toFixed(2)}`}
+                        value={`₹${(item.quantity * item.rate).toLocaleString()}`}
                         disabled
                         className="bg-gray-50"
                       />
@@ -195,17 +217,32 @@ const SalesManager = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span>${calculateTotal().subtotal.toFixed(2)}</span>
+                      <span>₹{calculateTotal().subtotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tax (10%):</span>
-                      <span>${calculateTotal().tax.toFixed(2)}</span>
+                      <span>₹{calculateTotal().tax.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>Total:</span>
-                      <span>${calculateTotal().total.toFixed(2)}</span>
+                      <span>₹{calculateTotal().total.toLocaleString()}</span>
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="paidAmount">Amount Paid (₹)</Label>
+                  <Input
+                    id="paidAmount"
+                    type="number"
+                    value={newSale.paidAmount}
+                    onChange={(e) => setNewSale({ ...newSale, paidAmount: parseFloat(e.target.value) || 0 })}
+                    placeholder="Enter amount received"
+                    max={calculateTotal().total}
+                  />
+                  <p className="text-sm text-gray-600 mt-1">
+                    Outstanding: ₹{Math.max(0, calculateTotal().total - newSale.paidAmount).toLocaleString()}
+                  </p>
                 </div>
 
                 <Button onClick={createSale} className="w-full bg-green-600 hover:bg-green-700">
@@ -243,14 +280,20 @@ const SalesManager = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">{sale.id}</h3>
-                      <Badge variant={sale.status === 'paid' ? 'default' : 'secondary'}>
+                      <Badge variant={sale.status === 'paid' ? 'default' : sale.status === 'partial' ? 'secondary' : 'destructive'}>
                         {sale.status}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600">
-                      <div><strong>Customer:</strong> {sale.customer}</div>
+                      <div><strong>Customer:</strong> {sale.customerName}</div>
                       <div><strong>Date:</strong> {sale.date}</div>
-                      <div><strong>Total:</strong> <span className="font-semibold text-green-600">${sale.total.toFixed(2)}</span></div>
+                      <div><strong>Total:</strong> <span className="font-semibold text-green-600">₹{sale.total.toLocaleString()}</span></div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div><strong>Paid:</strong> <span className="text-green-600">₹{sale.paidAmount.toLocaleString()}</span></div>
+                      {sale.outstandingAmount > 0 && (
+                        <div><strong>Outstanding:</strong> <span className="text-red-600">₹{sale.outstandingAmount.toLocaleString()}</span></div>
+                      )}
                     </div>
                     <div className="mt-2">
                       <div className="text-sm text-gray-600">

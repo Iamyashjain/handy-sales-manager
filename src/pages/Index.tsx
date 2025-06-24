@@ -15,7 +15,9 @@ import {
   Search,
   Plus,
   Eye,
-  Download
+  Download,
+  Users,
+  CreditCard
 } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import SalesManager from "@/components/SalesManager";
@@ -23,10 +25,49 @@ import PurchaseManager from "@/components/PurchaseManager";
 import InventoryManager from "@/components/InventoryManager";
 import BillGenerator from "@/components/BillGenerator";
 import ReportsManager from "@/components/ReportsManager";
+import CustomerManager, { Customer } from "@/components/CustomerManager";
+import PaymentManager, { Payment } from "@/components/PaymentManager";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+
+  // Enhanced state management for customers and payments
+  const [customers, setCustomers] = useState<Customer[]>([
+    {
+      id: "CUST-001",
+      name: "ABC Corporation",
+      email: "contact@abc.com",
+      phone: "+91 9876543210",
+      address: "123 Business Street, Mumbai",
+      totalPurchases: 125000,
+      outstandingBalance: 15000,
+      createdAt: "2024-06-01"
+    },
+    {
+      id: "CUST-002",
+      name: "Tech Solutions Ltd",
+      email: "info@techsolutions.com",
+      phone: "+91 9876543211",
+      address: "456 Tech Park, Bangalore",
+      totalPurchases: 89000,
+      outstandingBalance: 0,
+      createdAt: "2024-06-05"
+    }
+  ]);
+
+  const [payments, setPayments] = useState<Payment[]>([
+    {
+      id: "PAY-001",
+      customerId: "CUST-001",
+      customerName: "ABC Corporation",
+      invoiceId: "INV-001",
+      amount: 10000,
+      paymentMethod: "upi",
+      date: "2024-06-20",
+      notes: "Partial payment for order #123"
+    }
+  ]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +77,31 @@ const Index = () => {
     } else {
       alert("Invalid credentials. Try username: admin, password: admin");
     }
+  };
+
+  const handleAddCustomer = (customer: Customer) => {
+    setCustomers([customer, ...customers]);
+  };
+
+  const handleUpdateCustomer = (updatedCustomer: Customer) => {
+    setCustomers(customers.map(customer => 
+      customer.id === updatedCustomer.id ? updatedCustomer : customer
+    ));
+  };
+
+  const handleAddPayment = (payment: Payment) => {
+    setPayments([payment, ...payments]);
+    
+    // Update customer's outstanding balance
+    setCustomers(customers.map(customer => {
+      if (customer.id === payment.customerId) {
+        return {
+          ...customer,
+          outstandingBalance: Math.max(0, customer.outstandingBalance - payment.amount)
+        };
+      }
+      return customer;
+    }));
   };
 
   if (!isLoggedIn) {
@@ -105,10 +171,14 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-white p-1 rounded-lg shadow-sm">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8 bg-white p-1 rounded-lg shadow-sm">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="customers" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Customers</span>
             </TabsTrigger>
             <TabsTrigger value="sales" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
@@ -122,6 +192,10 @@ const Index = () => {
               <Package className="h-4 w-4" />
               <span className="hidden sm:inline">Inventory</span>
             </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Payments</span>
+            </TabsTrigger>
             <TabsTrigger value="bills" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Bills</span>
@@ -133,11 +207,19 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <Dashboard />
+            <Dashboard customers={customers} payments={payments} />
+          </TabsContent>
+
+          <TabsContent value="customers">
+            <CustomerManager 
+              customers={customers} 
+              onAddCustomer={handleAddCustomer}
+              onUpdateCustomer={handleUpdateCustomer}
+            />
           </TabsContent>
 
           <TabsContent value="sales">
-            <SalesManager />
+            <SalesManager customers={customers} onUpdateCustomer={handleUpdateCustomer} />
           </TabsContent>
 
           <TabsContent value="purchases">
@@ -146,6 +228,14 @@ const Index = () => {
 
           <TabsContent value="inventory">
             <InventoryManager />
+          </TabsContent>
+
+          <TabsContent value="payments">
+            <PaymentManager 
+              payments={payments}
+              customers={customers}
+              onAddPayment={handleAddPayment}
+            />
           </TabsContent>
 
           <TabsContent value="bills">
