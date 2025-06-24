@@ -1,0 +1,281 @@
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Eye, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const SalesManager = () => {
+  const [sales, setSales] = useState([
+    {
+      id: "INV-001",
+      date: "2024-06-20",
+      customer: "ABC Corporation",
+      customerEmail: "contact@abc.com",
+      items: [
+        { name: "Product A", quantity: 5, rate: 100, amount: 500 },
+        { name: "Product B", quantity: 3, rate: 250, amount: 750 }
+      ],
+      subtotal: 1250,
+      tax: 125,
+      total: 1375,
+      status: "paid"
+    },
+    {
+      id: "INV-002",
+      date: "2024-06-19",
+      customer: "Tech Solutions Ltd",
+      customerEmail: "info@techsolutions.com",
+      items: [
+        { name: "Product C", quantity: 10, rate: 150, amount: 1500 },
+        { name: "Product D", quantity: 2, rate: 300, amount: 600 }
+      ],
+      subtotal: 2100,
+      tax: 210,
+      total: 2310,
+      status: "pending"
+    }
+  ]);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newSale, setNewSale] = useState({
+    customer: "",
+    customerEmail: "",
+    items: [{ name: "", quantity: 1, rate: 0 }]
+  });
+
+  const addItem = () => {
+    setNewSale({
+      ...newSale,
+      items: [...newSale.items, { name: "", quantity: 1, rate: 0 }]
+    });
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const updatedItems = newSale.items.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    );
+    setNewSale({ ...newSale, items: updatedItems });
+  };
+
+  const calculateTotal = () => {
+    const subtotal = newSale.items.reduce((sum, item) => sum + (item.quantity * item.rate), 0);
+    const tax = subtotal * 0.1; // 10% tax
+    return { subtotal, tax, total: subtotal + tax };
+  };
+
+  const createSale = () => {
+    const { subtotal, tax, total } = calculateTotal();
+    const sale = {
+      id: `INV-${String(sales.length + 1).padStart(3, '0')}`,
+      date: new Date().toISOString().split('T')[0],
+      customer: newSale.customer,
+      customerEmail: newSale.customerEmail,
+      items: newSale.items.map(item => ({
+        ...item,
+        amount: item.quantity * item.rate
+      })),
+      subtotal,
+      tax,
+      total,
+      status: "pending"
+    };
+    
+    setSales([sale, ...sales]);
+    setNewSale({
+      customer: "",
+      customerEmail: "",
+      items: [{ name: "", quantity: 1, rate: 0 }]
+    });
+  };
+
+  const filteredSales = sales.filter(sale => 
+    sale.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sale.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Sales Management</h2>
+          <p className="text-gray-600">Manage your sales transactions and generate invoices</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="bg-green-600 hover:bg-green-700">
+              <Plus className="h-4 w-4 mr-2" />
+              New Sale
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Sale</DialogTitle>
+              <DialogDescription>
+                Add a new sales transaction and generate invoice
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customer">Customer Name</Label>
+                  <Input
+                    id="customer"
+                    value={newSale.customer}
+                    onChange={(e) => setNewSale({ ...newSale, customer: e.target.value })}
+                    placeholder="Enter customer name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customerEmail">Customer Email</Label>
+                  <Input
+                    id="customerEmail"
+                    type="email"
+                    value={newSale.customerEmail}
+                    onChange={(e) => setNewSale({ ...newSale, customerEmail: e.target.value })}
+                    placeholder="Enter customer email"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Items</h3>
+                  <Button type="button" onClick={addItem} variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Item
+                  </Button>
+                </div>
+
+                {newSale.items.map((item, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                    <div>
+                      <Label>Product Name</Label>
+                      <Input
+                        value={item.name}
+                        onChange={(e) => updateItem(index, 'name', e.target.value)}
+                        placeholder="Product name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Rate ($)</Label>
+                      <Input
+                        type="number"
+                        value={item.rate}
+                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label>Amount</Label>
+                      <Input
+                        value={`$${(item.quantity * item.rate).toFixed(2)}`}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>${calculateTotal().subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (10%):</span>
+                      <span>${calculateTotal().tax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg border-t pt-2">
+                      <span>Total:</span>
+                      <span>${calculateTotal().total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={createSale} className="w-full bg-green-600 hover:bg-green-700">
+                  Create Sale & Generate Invoice
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Sales History</CardTitle>
+              <CardDescription>View and manage your sales transactions</CardDescription>
+            </div>
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search sales..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full sm:w-64"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredSales.map((sale) => (
+              <div key={sale.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-lg">{sale.id}</h3>
+                      <Badge variant={sale.status === 'paid' ? 'default' : 'secondary'}>
+                        {sale.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600">
+                      <div><strong>Customer:</strong> {sale.customer}</div>
+                      <div><strong>Date:</strong> {sale.date}</div>
+                      <div><strong>Total:</strong> <span className="font-semibold text-green-600">${sale.total.toFixed(2)}</span></div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-sm text-gray-600">
+                        <strong>Items:</strong> {sale.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Invoice
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default SalesManager;
