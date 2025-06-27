@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ const BillGenerator = () => {
     items: [
       { description: "", quantity: 1, rate: 0, amount: 0 }
     ],
+    transport: 0,
     notes: "Thank you for your business!",
     terms: "Payment due within 30 days"
   });
@@ -60,12 +60,11 @@ const BillGenerator = () => {
 
   const calculateTotals = () => {
     const subtotal = billData.items.reduce((sum, item) => sum + item.amount, 0);
-    const tax = subtotal * 0.1; // 10% tax
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
+    const total = subtotal + billData.transport;
+    return { subtotal, total };
   };
 
-  const { subtotal, tax, total } = calculateTotals();
+  const { subtotal, total } = calculateTotals();
 
   const InvoicePreview = () => (
     <div className="bg-white p-8 max-w-4xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -115,8 +114,8 @@ const BillGenerator = () => {
               <tr key={index}>
                 <td className="border border-gray-300 p-3">{item.description || "Item description"}</td>
                 <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
-                <td className="border border-gray-300 p-3 text-right">${item.rate.toFixed(2)}</td>
-                <td className="border border-gray-300 p-3 text-right">${item.amount.toFixed(2)}</td>
+                <td className="border border-gray-300 p-3 text-right">₹{item.rate.toFixed(2)}</td>
+                <td className="border border-gray-300 p-3 text-right">₹{item.amount.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -128,15 +127,17 @@ const BillGenerator = () => {
         <div className="w-64">
           <div className="flex justify-between py-2 border-b">
             <span>Subtotal:</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>₹{subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between py-2 border-b">
-            <span>Tax (10%):</span>
-            <span>${tax.toFixed(2)}</span>
-          </div>
+          {billData.transport > 0 && (
+            <div className="flex justify-between py-2 border-b">
+              <span>Transport:</span>
+              <span>₹{billData.transport.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-3 border-b-2 border-gray-400 font-bold text-lg">
             <span>Total:</span>
-            <span>${total.toFixed(2)}</span>
+            <span>₹{total.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -308,7 +309,7 @@ const BillGenerator = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs">Rate</Label>
+                    <Label className="text-xs">Rate (₹)</Label>
                     <Input
                       type="number"
                       value={item.rate}
@@ -320,7 +321,7 @@ const BillGenerator = () => {
                   <div className="col-span-2">
                     <Label className="text-xs">Amount</Label>
                     <Input
-                      value={`$${item.amount.toFixed(2)}`}
+                      value={`₹${item.amount.toFixed(2)}`}
                       disabled
                       className="bg-gray-50"
                     />
@@ -340,19 +341,34 @@ const BillGenerator = () => {
               ))}
             </div>
 
+            {/* Transport */}
+            <div>
+              <Label>Transport Charges (₹)</Label>
+              <Input
+                type="number"
+                value={billData.transport}
+                onChange={(e) => setBillData({ ...billData, transport: parseFloat(e.target.value) || 0 })}
+                step="0.01"
+                min="0"
+                placeholder="Enter transport charges"
+              />
+            </div>
+
             {/* Total */}
             <div className="bg-gray-50 p-4 rounded space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Tax (10%):</span>
-                <span>${tax.toFixed(2)}</span>
-              </div>
+              {billData.transport > 0 && (
+                <div className="flex justify-between">
+                  <span>Transport:</span>
+                  <span>₹{billData.transport.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
+                <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
 

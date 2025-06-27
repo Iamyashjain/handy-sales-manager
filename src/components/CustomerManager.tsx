@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Users } from "lucide-react";
+import { Plus, Search, Eye, Users, Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export interface Customer {
@@ -23,9 +23,10 @@ interface CustomerManagerProps {
   customers: Customer[];
   onAddCustomer: (customer: Customer) => void;
   onUpdateCustomer: (customer: Customer) => void;
+  payments?: any[];
 }
 
-const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: CustomerManagerProps) => {
+const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments = [] }: CustomerManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -33,6 +34,9 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: Custome
     phone: "",
     address: ""
   });
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const createCustomer = () => {
     const customer: Customer = {
@@ -48,6 +52,16 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: Custome
     
     onAddCustomer(customer);
     setNewCustomer({ name: "", email: "", phone: "", address: "" });
+    setIsAddDialogOpen(false);
+  };
+
+  const viewCustomerDetails = (customer: Customer) => {
+    setViewingCustomer(customer);
+    setIsViewDialogOpen(true);
+  };
+
+  const getCustomerPayments = (customerId: string) => {
+    return payments.filter(payment => payment.customerId === customerId);
   };
 
   const filteredCustomers = customers.filter(customer => 
@@ -62,7 +76,7 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: Custome
           <h2 className="text-2xl font-bold">Customer Management</h2>
           <p className="text-gray-600">Manage your customer database and track outstanding balances</p>
         </div>
-        <Dialog>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4 mr-2" />
@@ -168,7 +182,7 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: Custome
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => viewCustomerDetails(customer)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
                     </Button>
@@ -179,6 +193,73 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer }: Custome
           </div>
         </CardContent>
       </Card>
+
+      {/* Customer Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Details - {viewingCustomer?.name}</DialogTitle>
+          </DialogHeader>
+          {viewingCustomer && (
+            <div className="space-y-6">
+              {/* Customer Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div><strong>Customer ID:</strong> {viewingCustomer.id}</div>
+                <div><strong>Email:</strong> {viewingCustomer.email}</div>
+                <div><strong>Phone:</strong> {viewingCustomer.phone}</div>
+                <div><strong>Address:</strong> {viewingCustomer.address}</div>
+                <div><strong>Total Purchases:</strong> <span className="text-green-600">₹{viewingCustomer.totalPurchases.toLocaleString()}</span></div>
+                <div>
+                  <strong>Outstanding Balance:</strong> 
+                  <span className={`ml-1 ${viewingCustomer.outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    ₹{viewingCustomer.outstandingBalance.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment History */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Receipt className="h-5 w-5 text-blue-600" />
+                  <h4 className="text-lg font-semibold">Payment History</h4>
+                </div>
+                
+                {getCustomerPayments(viewingCustomer.id).length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="p-3 text-left">Date</th>
+                          <th className="p-3 text-left">Invoice Ref</th>
+                          <th className="p-3 text-right">Amount</th>
+                          <th className="p-3 text-left">Method</th>
+                          <th className="p-3 text-left">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getCustomerPayments(viewingCustomer.id).map((payment, index) => (
+                          <tr key={index} className="border-t">
+                            <td className="p-3">{payment.date}</td>
+                            <td className="p-3">{payment.invoiceId}</td>
+                            <td className="p-3 text-right text-green-600 font-semibold">₹{payment.amount.toLocaleString()}</td>
+                            <td className="p-3 capitalize">{payment.paymentMethod}</td>
+                            <td className="p-3">{payment.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Receipt className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No payment history available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

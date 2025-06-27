@@ -30,9 +30,9 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
         { name: "Product B", size: "1kg", quantity: 3, rate: 25000, amount: 75000 }
       ],
       subtotal: 125000,
-      tax: 12500,
-      total: 137500,
-      paidAmount: 122500,
+      transport: 5000,
+      total: 130000,
+      paidAmount: 115000,
       outstandingAmount: 15000,
       status: "partial"
     },
@@ -47,9 +47,9 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
         { name: "Product D", size: "Large", quantity: 2, rate: 30000, amount: 60000 }
       ],
       subtotal: 210000,
-      tax: 21000,
-      total: 231000,
-      paidAmount: 231000,
+      transport: 2000,
+      total: 212000,
+      paidAmount: 212000,
       outstandingAmount: 0,
       status: "paid"
     }
@@ -59,8 +59,12 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
   const [newSale, setNewSale] = useState({
     customerId: "",
     items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
+    transport: 0,
     paidAmount: 0
   });
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [viewingSale, setViewingSale] = useState(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const addItem = () => {
     setNewSale({
@@ -73,7 +77,6 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
     const updatedItems = newSale.items.map((item, i) => {
       if (i === index) {
         if (field === 'productId') {
-          // Auto-fill product details when product is selected
           const selectedProduct = products.find(p => p.id === value);
           if (selectedProduct) {
             return {
@@ -94,12 +97,12 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
 
   const calculateTotal = () => {
     const subtotal = newSale.items.reduce((sum, item) => sum + (item.quantity * item.rate), 0);
-    const tax = subtotal * 0.1; // 10% tax
-    return { subtotal, tax, total: subtotal + tax };
+    const total = subtotal + newSale.transport;
+    return { subtotal, total };
   };
 
   const createSale = () => {
-    const { subtotal, tax, total } = calculateTotal();
+    const { subtotal, total } = calculateTotal();
     const customer = customers.find(c => c.id === newSale.customerId);
     if (!customer) return;
 
@@ -119,7 +122,7 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
         amount: item.quantity * item.rate
       })),
       subtotal,
-      tax,
+      transport: newSale.transport,
       total,
       paidAmount: newSale.paidAmount,
       outstandingAmount,
@@ -128,7 +131,6 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
     
     setSales([sale, ...sales]);
 
-    // Update customer's outstanding balance and total purchases
     const updatedCustomer = {
       ...customer,
       totalPurchases: customer.totalPurchases + total,
@@ -139,8 +141,21 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
     setNewSale({
       customerId: "",
       items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
+      transport: 0,
       paidAmount: 0
     });
+    setIsAddDialogOpen(false);
+  };
+
+  const viewSale = (sale) => {
+    setViewingSale(sale);
+    setIsViewDialogOpen(true);
+  };
+
+  const downloadInvoice = (sale) => {
+    // Generate and download invoice PDF
+    console.log("Downloading invoice for:", sale.id);
+    alert(`Invoice ${sale.id} would be downloaded as PDF`);
   };
 
   const filteredSales = sales.filter(sale => 
@@ -155,7 +170,7 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
           <h2 className="text-2xl font-bold">Sales Management</h2>
           <p className="text-gray-600">Manage your sales transactions and generate invoices</p>
         </div>
-        <Dialog>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-green-600 hover:bg-green-700">
               <Plus className="h-4 w-4 mr-2" />
@@ -219,9 +234,8 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                       <Label>Size</Label>
                       <Input
                         value={item.size}
-                        disabled
-                        className="bg-gray-50"
-                        placeholder="Auto-filled"
+                        onChange={(e) => updateItem(index, 'size', e.target.value)}
+                        placeholder="Size"
                       />
                     </div>
                     <div>
@@ -238,9 +252,9 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                       <Input
                         type="number"
                         value={item.rate}
-                        disabled
-                        className="bg-gray-50"
-                        placeholder="Auto-filled"
+                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                        step="0.01"
+                        min="0"
                       />
                     </div>
                     <div>
@@ -254,16 +268,31 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                   </div>
                 ))}
 
+                <div>
+                  <Label htmlFor="transport">Transport Charges (₹)</Label>
+                  <Input
+                    id="transport"
+                    type="number"
+                    value={newSale.transport}
+                    onChange={(e) => setNewSale({ ...newSale, transport: parseFloat(e.target.value) || 0 })}
+                    placeholder="Enter transport charges"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
                       <span>₹{calculateTotal().subtotal.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Tax (10%):</span>
-                      <span>₹{calculateTotal().tax.toLocaleString()}</span>
-                    </div>
+                    {newSale.transport > 0 && (
+                      <div className="flex justify-between">
+                        <span>Transport:</span>
+                        <span>₹{newSale.transport.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>Total:</span>
                       <span>₹{calculateTotal().total.toLocaleString()}</span>
@@ -343,11 +372,11 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => viewSale(sale)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => downloadInvoice(sale)}>
                       <FileText className="h-4 w-4 mr-2" />
                       Invoice
                     </Button>
@@ -358,6 +387,88 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
           </div>
         </CardContent>
       </Card>
+
+      {/* View Sale Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sale Details - {viewingSale?.id}</DialogTitle>
+          </DialogHeader>
+          {viewingSale && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <strong>Customer:</strong> {viewingSale.customerName}
+                </div>
+                <div>
+                  <strong>Date:</strong> {viewingSale.date}
+                </div>
+                <div>
+                  <strong>Status:</strong> 
+                  <Badge className="ml-2" variant={viewingSale.status === 'paid' ? 'default' : 'secondary'}>
+                    {viewingSale.status}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2">Items:</h4>
+                <div className="border rounded">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="p-2 text-left">Item</th>
+                        <th className="p-2 text-center">Qty</th>
+                        <th className="p-2 text-right">Rate</th>
+                        <th className="p-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewingSale.items.map((item, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-2">{item.name} - {item.size}</td>
+                          <td className="p-2 text-center">{item.quantity}</td>
+                          <td className="p-2 text-right">₹{item.rate.toLocaleString()}</td>
+                          <td className="p-2 text-right">₹{item.amount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>₹{viewingSale.subtotal.toLocaleString()}</span>
+                  </div>
+                  {viewingSale.transport > 0 && (
+                    <div className="flex justify-between">
+                      <span>Transport:</span>
+                      <span>₹{viewingSale.transport.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>Total:</span>
+                    <span>₹{viewingSale.total.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Paid:</span>
+                    <span>₹{viewingSale.paidAmount.toLocaleString()}</span>
+                  </div>
+                  {viewingSale.outstandingAmount > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Outstanding:</span>
+                      <span>₹{viewingSale.outstandingAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   DollarSign, 
-  ShoppingCart, 
   Package, 
   FileText, 
   BarChart3, 
@@ -21,7 +20,6 @@ import {
 } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import SalesManager from "@/components/SalesManager";
-import PurchaseManager from "@/components/PurchaseManager";
 import InventoryManager from "@/components/InventoryManager";
 import BillGenerator from "@/components/BillGenerator";
 import ReportsManager from "@/components/ReportsManager";
@@ -220,7 +218,7 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 bg-white p-1 rounded-lg shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-8 bg-white p-1 rounded-lg shadow-sm">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -236,10 +234,6 @@ const Index = () => {
             <TabsTrigger value="sales" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Sales</span>
-            </TabsTrigger>
-            <TabsTrigger value="purchases" className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Purchases</span>
             </TabsTrigger>
             <TabsTrigger value="inventory" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
@@ -277,6 +271,7 @@ const Index = () => {
               customers={customers} 
               onAddCustomer={handleAddCustomer}
               onUpdateCustomer={handleUpdateCustomer}
+              payments={payments}
             />
           </TabsContent>
 
@@ -286,10 +281,6 @@ const Index = () => {
               products={products}
               onUpdateCustomer={handleUpdateCustomer} 
             />
-          </TabsContent>
-
-          <TabsContent value="purchases">
-            <PurchaseManager products={products} />
           </TabsContent>
 
           <TabsContent value="inventory">
