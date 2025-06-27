@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, FileText, Printer } from "lucide-react";
+import { Plus, Search, Eye, FileText, Printer, Edit, Trash2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Customer } from "./CustomerManager";
@@ -19,27 +19,46 @@ interface SalesManagerProps {
   onUpdateCustomer: (customer: Customer) => void;
   onAddSale: (sale: Sale) => void;
   onUpdateSale: (sale: Sale) => void;
+  onDeleteSale: (saleId: string) => void;
+  onAddCustomer: (customer: Customer) => void;
 }
 
-const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale, onUpdateSale }: SalesManagerProps) => {
+const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale, onUpdateSale, onDeleteSale, onAddCustomer }: SalesManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newSale, setNewSale] = useState({
     customerId: "",
     items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
     transport: 0,
-    paidAmount: 0
+    paidAmount: 0,
+    date: new Date().toISOString().split('T')[0]
   });
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [printingSale, setPrintingSale] = useState<Sale | null>(null);
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: ""
+  });
 
   const addItem = () => {
     setNewSale({
       ...newSale,
       items: [...newSale.items, { productId: "", name: "", size: "", quantity: 1, rate: 0 }]
     });
+  };
+
+  const removeItem = (index: number) => {
+    if (newSale.items.length > 1) {
+      const updatedItems = newSale.items.filter((_, i) => i !== index);
+      setNewSale({ ...newSale, items: updatedItems });
+    }
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -70,6 +89,24 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
     return { subtotal, total };
   };
 
+  const createCustomer = () => {
+    const customer = {
+      id: `CUST-${String(customers.length + 1).padStart(3, '0')}`,
+      name: newCustomer.name,
+      email: newCustomer.email,
+      phone: newCustomer.phone,
+      address: newCustomer.address,
+      totalPurchases: 0,
+      outstandingBalance: 0,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    
+    onAddCustomer(customer);
+    setNewCustomer({ name: "", email: "", phone: "", address: "" });
+    setIsAddCustomerDialogOpen(false);
+    setNewSale({ ...newSale, customerId: customer.id });
+  };
+
   const createSale = () => {
     const { subtotal, total } = calculateTotal();
     const customer = customers.find(c => c.id === newSale.customerId);
@@ -79,7 +116,7 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
     
     const sale: Sale = {
       id: `INV-${String(sales.length + 1).padStart(3, '0')}`,
-      date: new Date().toISOString().split('T')[0],
+      date: newSale.date,
       customerId: newSale.customerId,
       customerName: customer.name,
       customerEmail: customer.email,
@@ -107,7 +144,6 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
     };
     onUpdateCustomer(updatedCustomer);
 
-    // Auto-show print dialog
     setPrintingSale(sale);
     setIsPrintDialogOpen(true);
 
@@ -115,9 +151,92 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
       customerId: "",
       items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
       transport: 0,
-      paidAmount: 0
+      paidAmount: 0,
+      date: new Date().toISOString().split('T')[0]
     });
     setIsAddDialogOpen(false);
+  };
+
+  const startEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setNewSale({
+      customerId: sale.customerId,
+      items: sale.items.map(item => ({
+        productId: "",
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        rate: item.rate
+      })),
+      transport: sale.transport,
+      paidAmount: sale.paidAmount,
+      date: sale.date
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const updateSale = () => {
+    if (!editingSale) return;
+    
+    const { subtotal, total } = calculateTotal();
+    const customer = customers.find(c => c.id === newSale.customerId);
+    if (!customer) return;
+
+    const outstandingAmount = total - newSale.paidAmount;
+    
+    const updatedSale: Sale = {
+      ...editingSale,
+      date: newSale.date,
+      customerId: newSale.customerId,
+      customerName: customer.name,
+      customerEmail: customer.email,
+      items: newSale.items.map(item => ({
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        rate: item.rate,
+        amount: item.quantity * item.rate
+      })),
+      subtotal,
+      transport: newSale.transport,
+      total,
+      paidAmount: newSale.paidAmount,
+      outstandingAmount,
+      status: outstandingAmount > 0 ? (newSale.paidAmount > 0 ? "partial" : "unpaid") : "paid"
+    };
+    
+    onUpdateSale(updatedSale);
+
+    // Update customer balance
+    const oldCustomer = customers.find(c => c.id === editingSale.customerId);
+    if (oldCustomer) {
+      const updatedOldCustomer = {
+        ...oldCustomer,
+        totalPurchases: oldCustomer.totalPurchases - editingSale.total + total,
+        outstandingBalance: oldCustomer.outstandingBalance - editingSale.outstandingAmount + outstandingAmount
+      };
+      onUpdateCustomer(updatedOldCustomer);
+    }
+
+    setEditingSale(null);
+    setIsEditDialogOpen(false);
+  };
+
+  const deleteSale = (sale: Sale) => {
+    if (confirm(`Are you sure you want to delete sale ${sale.id}? This action cannot be undone.`)) {
+      onDeleteSale(sale.id);
+      
+      // Update customer balance
+      const customer = customers.find(c => c.id === sale.customerId);
+      if (customer) {
+        const updatedCustomer = {
+          ...customer,
+          totalPurchases: customer.totalPurchases - sale.total,
+          outstandingBalance: customer.outstandingBalance - sale.outstandingAmount
+        };
+        onUpdateCustomer(updatedCustomer);
+      }
+    }
   };
 
   const viewSale = (sale: Sale) => {
@@ -183,7 +302,7 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
             </tr>
           </thead>
           <tbody>
-            {sale.items.map((item, index) => (
+            {sale.items.filter(item => item.quantity > 0).map((item, index) => (
               <tr key={index}>
                 <td className="border border-gray-300 p-3">{item.name} - {item.size}</td>
                 <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
@@ -254,20 +373,39 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label htmlFor="saleCustomer">Select Customer</Label>
+                  <Select value={newSale.customerId} onValueChange={(value) => setNewSale({ ...newSale, customerId: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.id})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>&nbsp;</Label>
+                  <Button type="button" onClick={() => setIsAddCustomerDialogOpen(true)} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Customer
+                  </Button>
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="saleCustomer">Select Customer</Label>
-                <Select value={newSale.customerId} onValueChange={(value) => setNewSale({ ...newSale, customerId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.id})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="saleDate">Sale Date</Label>
+                <Input
+                  id="saleDate"
+                  type="date"
+                  value={newSale.date}
+                  onChange={(e) => setNewSale({ ...newSale, date: e.target.value })}
+                />
               </div>
 
               <div className="space-y-4">
@@ -280,7 +418,7 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
                 </div>
 
                 {newSale.items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
                     <div>
                       <Label>Select Product</Label>
                       <Select 
@@ -333,6 +471,19 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
                         disabled
                         className="bg-gray-50"
                       />
+                    </div>
+                    <div className="flex items-end">
+                      {newSale.items.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeItem(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -448,6 +599,10 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => startEditSale(sale)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => printInvoice(sale)}>
                       <Printer className="h-4 w-4 mr-2" />
                       Print
@@ -456,6 +611,10 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
                       <FileText className="h-4 w-4 mr-2" />
                       Download
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => deleteSale(sale)} className="text-red-600 hover:text-red-700">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -463,6 +622,229 @@ const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale,
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Customer Dialog */}
+      <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogDescription>Create a new customer profile</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="customerName">Customer Name</Label>
+              <Input
+                id="customerName"
+                value={newCustomer.name}
+                onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                placeholder="Enter customer name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerEmail">Email</Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerPhone">Phone</Label>
+              <Input
+                id="customerPhone"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerAddress">Address</Label>
+              <Input
+                id="customerAddress"
+                value={newCustomer.address}
+                onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                placeholder="Enter address"
+              />
+            </div>
+            <Button onClick={createCustomer} className="w-full bg-blue-600 hover:bg-blue-700">
+              Add Customer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Sale - {editingSale?.id}</DialogTitle>
+            <DialogDescription>
+              Update sales transaction details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editSaleCustomer">Select Customer</Label>
+              <Select value={newSale.customerId} onValueChange={(value) => setNewSale({ ...newSale, customerId: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} ({customer.id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="editSaleDate">Sale Date</Label>
+              <Input
+                id="editSaleDate"
+                type="date"
+                value={newSale.date}
+                onChange={(e) => setNewSale({ ...newSale, date: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Items</h3>
+                <Button type="button" onClick={addItem} variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
+
+              {newSale.items.map((item, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
+                  <div>
+                    <Label>Select Product</Label>
+                    <Select 
+                      value={item.productId} 
+                      onValueChange={(value) => updateItem(index, 'productId', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - {product.size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Size</Label>
+                    <Input
+                      value={item.size}
+                      onChange={(e) => updateItem(index, 'size', e.target.value)}
+                      placeholder="Size"
+                    />
+                  </div>
+                  <div>
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Rate (₹)</Label>
+                    <Input
+                      type="number"
+                      value={item.rate}
+                      onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <Label>Amount</Label>
+                    <Input
+                      value={`₹${(item.quantity * item.rate).toLocaleString()}`}
+                      disabled
+                      className="bg-gray-50"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    {newSale.items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <Label htmlFor="editTransport">Transport Charges (₹)</Label>
+                <Input
+                  id="editTransport"
+                  type="number"
+                  value={newSale.transport}
+                  onChange={(e) => setNewSale({ ...newSale, transport: parseFloat(e.target.value) || 0 })}
+                  placeholder="Enter transport charges"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>₹{calculateTotal().subtotal.toLocaleString()}</span>
+                  </div>
+                  {newSale.transport > 0 && (
+                    <div className="flex justify-between">
+                      <span>Transport:</span>
+                      <span>₹{newSale.transport.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>Total:</span>
+                    <span>₹{calculateTotal().total.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="editPaidAmount">Amount Paid (₹)</Label>
+                <Input
+                  id="editPaidAmount"
+                  type="number"
+                  value={newSale.paidAmount}
+                  onChange={(e) => setNewSale({ ...newSale, paidAmount: parseFloat(e.target.value) || 0 })}
+                  placeholder="Enter amount received"
+                  max={calculateTotal().total}
+                />
+                <p className="text-sm text-gray-600 mt-1">
+                  Outstanding: ₹{Math.max(0, calculateTotal().total - newSale.paidAmount).toLocaleString()}
+                </p>
+              </div>
+
+              <Button onClick={updateSale} className="w-full bg-blue-600 hover:bg-blue-700">
+                Update Sale
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Sale Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

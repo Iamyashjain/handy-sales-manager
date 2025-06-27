@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +22,6 @@ import {
 import Dashboard from "@/components/Dashboard";
 import SalesManager from "@/components/SalesManager";
 import BillGenerator from "@/components/BillGenerator";
-import ReportsManager from "@/components/ReportsManager";
 import CustomerManager, { Customer } from "@/components/CustomerManager";
 import PaymentManager, { Payment } from "@/components/PaymentManager";
 import ProductManager, { Product } from "@/components/ProductManager";
@@ -195,6 +195,16 @@ const Index = () => {
     }));
   };
 
+  const handleUpdatePayment = (updatedPayment: Payment) => {
+    setPayments(payments.map(payment => 
+      payment.id === updatedPayment.id ? updatedPayment : payment
+    ));
+  };
+
+  const handleDeletePayment = (paymentId: string) => {
+    setPayments(payments.filter(payment => payment.id !== paymentId));
+  };
+
   const handleAddProduct = (product: Product) => {
     setProducts([product, ...products]);
   };
@@ -217,6 +227,10 @@ const Index = () => {
     setSales(sales.map(sale => 
       sale.id === updatedSale.id ? updatedSale : sale
     ));
+  };
+
+  const handleDeleteSale = (saleId: string) => {
+    setSales(sales.filter(sale => sale.id !== saleId));
   };
 
   if (!isLoggedIn) {
@@ -344,6 +358,8 @@ const Index = () => {
               onUpdateCustomer={handleUpdateCustomer}
               onAddSale={handleAddSale}
               onUpdateSale={handleUpdateSale}
+              onDeleteSale={handleDeleteSale}
+              onAddCustomer={handleAddCustomer}
             />
           </TabsContent>
 
@@ -352,6 +368,9 @@ const Index = () => {
               payments={payments}
               customers={customers}
               onAddPayment={handleAddPayment}
+              onUpdatePayment={handleUpdatePayment}
+              onDeletePayment={handleDeletePayment}
+              onUpdateCustomer={handleUpdateCustomer}
             />
           </TabsContent>
 

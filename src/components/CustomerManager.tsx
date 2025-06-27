@@ -82,12 +82,45 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments 
     customer.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Customer Statement Component
+  // Enhanced Customer Statement Component with Credit/Debit Ledger
   const CustomerStatement = ({ customer }: { customer: Customer }) => {
     const customerSales = getCustomerSales(customer.id);
     const customerPayments = getCustomerPayments(customer.id);
+    
+    // Create a combined transaction history with running balance
+    const allTransactions = [
+      ...customerSales.map(sale => ({
+        date: sale.date,
+        description: `Invoice ${sale.id}`,
+        type: 'debit' as const,
+        amount: sale.total,
+        transport: sale.transport,
+        balance: 0 // Will be calculated below
+      })),
+      ...customerPayments.map(payment => ({
+        date: payment.date,
+        description: `Payment ${payment.id} - ${payment.invoiceId}`,
+        type: 'credit' as const,
+        amount: payment.amount,
+        transport: 0,
+        balance: 0 // Will be calculated below
+      }))
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Calculate running balance
+    let runningBalance = 0;
+    allTransactions.forEach(transaction => {
+      if (transaction.type === 'debit') {
+        runningBalance += transaction.amount;
+      } else {
+        runningBalance -= transaction.amount;
+      }
+      transaction.balance = runningBalance;
+    });
+
     const totalInvoices = customerSales.reduce((sum, sale) => sum + sale.total, 0);
     const totalPaid = customerPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalTransport = customerSales.reduce((sum, sale) => sum + sale.transport, 0);
 
     return (
       <div className="bg-white p-8 max-w-4xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -118,6 +151,7 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments 
             <div className="grid grid-cols-2 gap-4">
               <div><strong>Total Invoices:</strong> ₹{totalInvoices.toLocaleString()}</div>
               <div><strong>Total Paid:</strong> ₹{totalPaid.toLocaleString()}</div>
+              <div><strong>Total Transport:</strong> ₹{totalTransport.toLocaleString()}</div>
               <div><strong>Outstanding Balance:</strong> 
                 <span className={`ml-1 font-bold ${customer.outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                   ₹{customer.outstandingBalance.toLocaleString()}
@@ -127,9 +161,42 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments 
           </div>
         </div>
 
-        {/* Invoices */}
+        {/* Credit/Debit Ledger */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Invoice History:</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Transaction Ledger (Credit/Debit):</h3>
+          <table className="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="border border-gray-300 p-2 text-left">Date</th>
+                <th className="border border-gray-300 p-2 text-left">Description</th>
+                <th className="border border-gray-300 p-2 text-right">Debit (₹)</th>
+                <th className="border border-gray-300 p-2 text-right">Credit (₹)</th>
+                <th className="border border-gray-300 p-2 text-right">Balance (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allTransactions.map((transaction, index) => (
+                <tr key={index}>
+                  <td className="border border-gray-300 p-2">{transaction.date}</td>
+                  <td className="border border-gray-300 p-2">{transaction.description}</td>
+                  <td className="border border-gray-300 p-2 text-right text-red-600">
+                    {transaction.type === 'debit' ? `₹${transaction.amount.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="border border-gray-300 p-2 text-right text-green-600">
+                    {transaction.type === 'credit' ? `₹${transaction.amount.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="border border-gray-300 p-2 text-right font-semibold">
+                    ₹{transaction.balance.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Bill History */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Bill History:</h3>
           <table className="w-full border-collapse border border-gray-300">
             <thead>
               <tr className="bg-gray-50">
@@ -156,7 +223,7 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments 
           </table>
         </div>
 
-        {/* Payments */}
+        {/* Payment History */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Payment History:</h3>
           <table className="w-full border-collapse border border-gray-300">
@@ -360,7 +427,8 @@ const CustomerManager = ({ customers, onAddCustomer, onUpdateCustomer, payments 
                       </thead>
                       <tbody>
                         {getCustomerSales(viewingCustomer.id).map((sale) => (
-                          <tr key={sale.id} className="border-t">
+                          <tr key={sale.id} className="border-t cursor-pointer hover:bg-gray-50" 
+                              onClick={() => alert(`Viewing invoice ${sale.id}`)}>
                             <td className="p-3">{sale.id}</td>
                             <td className="p-3">{sale.date}</td>
                             <td className="p-3 text-right text-blue-600 font-semibold">₹{sale.total.toLocaleString()}</td>
