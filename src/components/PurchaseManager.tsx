@@ -7,8 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Eye, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Product } from "./ProductManager";
 
-const PurchaseManager = () => {
+interface PurchaseManagerProps {
+  products: Product[];
+}
+
+const PurchaseManager = ({ products }: PurchaseManagerProps) => {
   const [purchases, setPurchases] = useState([
     {
       id: "PUR-001",
@@ -17,8 +23,8 @@ const PurchaseManager = () => {
       supplierEmail: "orders@abcsuppliers.com",
       invoiceNumber: "SUP-2024-001",
       items: [
-        { name: "Raw Material A", quantity: 100, unitPrice: 15, amount: 1500 },
-        { name: "Component B", quantity: 50, unitPrice: 25, amount: 1250 }
+        { name: "Raw Material A", size: "500g", quantity: 100, unitPrice: 15, amount: 1500 },
+        { name: "Component B", size: "1kg", quantity: 50, unitPrice: 25, amount: 1250 }
       ],
       subtotal: 2750,
       tax: 275,
@@ -32,8 +38,8 @@ const PurchaseManager = () => {
       supplierEmail: "supply@globalparts.com",
       invoiceNumber: "GP-INV-456",
       items: [
-        { name: "Electronic Parts", quantity: 25, unitPrice: 80, amount: 2000 },
-        { name: "Packaging Materials", quantity: 200, unitPrice: 2.5, amount: 500 }
+        { name: "Electronic Parts", size: "Pack", quantity: 25, unitPrice: 80, amount: 2000 },
+        { name: "Packaging Materials", size: "Roll", quantity: 200, unitPrice: 2.5, amount: 500 }
       ],
       subtotal: 2500,
       tax: 250,
@@ -47,20 +53,36 @@ const PurchaseManager = () => {
     supplier: "",
     supplierEmail: "",
     invoiceNumber: "",
-    items: [{ name: "", quantity: 1, unitPrice: 0 }]
+    items: [{ productId: "", name: "", size: "", quantity: 1, unitPrice: 0 }]
   });
 
   const addItem = () => {
     setNewPurchase({
       ...newPurchase,
-      items: [...newPurchase.items, { name: "", quantity: 1, unitPrice: 0 }]
+      items: [...newPurchase.items, { productId: "", name: "", size: "", quantity: 1, unitPrice: 0 }]
     });
   };
 
   const updateItem = (index: number, field: string, value: any) => {
-    const updatedItems = newPurchase.items.map((item, i) => 
-      i === index ? { ...item, [field]: value } : item
-    );
+    const updatedItems = newPurchase.items.map((item, i) => {
+      if (i === index) {
+        if (field === 'productId') {
+          // Auto-fill product details when product is selected
+          const selectedProduct = products.find(p => p.id === value);
+          if (selectedProduct) {
+            return {
+              ...item,
+              productId: value,
+              name: selectedProduct.name,
+              size: selectedProduct.size,
+              unitPrice: selectedProduct.rate
+            };
+          }
+        }
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
     setNewPurchase({ ...newPurchase, items: updatedItems });
   };
 
@@ -79,7 +101,10 @@ const PurchaseManager = () => {
       supplierEmail: newPurchase.supplierEmail,
       invoiceNumber: newPurchase.invoiceNumber,
       items: newPurchase.items.map(item => ({
-        ...item,
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
         amount: item.quantity * item.unitPrice
       })),
       subtotal,
@@ -93,7 +118,7 @@ const PurchaseManager = () => {
       supplier: "",
       supplierEmail: "",
       invoiceNumber: "",
-      items: [{ name: "", quantity: 1, unitPrice: 0 }]
+      items: [{ productId: "", name: "", size: "", quantity: 1, unitPrice: 0 }]
     });
   };
 
@@ -166,13 +191,32 @@ const PurchaseManager = () => {
                 </div>
 
                 {newPurchase.items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg">
                     <div>
-                      <Label>Product Name</Label>
+                      <Label>Select Product</Label>
+                      <Select 
+                        value={item.productId} 
+                        onValueChange={(value) => updateItem(index, 'productId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {product.size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Size</Label>
                       <Input
-                        value={item.name}
-                        onChange={(e) => updateItem(index, 'name', e.target.value)}
-                        placeholder="Product name"
+                        value={item.size}
+                        disabled
+                        className="bg-gray-50"
+                        placeholder="Auto-filled"
                       />
                     </div>
                     <div>
@@ -185,7 +229,7 @@ const PurchaseManager = () => {
                       />
                     </div>
                     <div>
-                      <Label>Unit Price ($)</Label>
+                      <Label>Unit Price (₹)</Label>
                       <Input
                         type="number"
                         value={item.unitPrice}
@@ -197,7 +241,7 @@ const PurchaseManager = () => {
                     <div>
                       <Label>Amount</Label>
                       <Input
-                        value={`$${(item.quantity * item.unitPrice).toFixed(2)}`}
+                        value={`₹${(item.quantity * item.unitPrice).toFixed(2)}`}
                         disabled
                         className="bg-gray-50"
                       />
@@ -209,15 +253,15 @@ const PurchaseManager = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span>${calculateTotal().subtotal.toFixed(2)}</span>
+                      <span>₹{calculateTotal().subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tax (10%):</span>
-                      <span>${calculateTotal().tax.toFixed(2)}</span>
+                      <span>₹{calculateTotal().tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>Total:</span>
-                      <span>${calculateTotal().total.toFixed(2)}</span>
+                      <span>₹{calculateTotal().total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -265,7 +309,7 @@ const PurchaseManager = () => {
                       <div><strong>Supplier:</strong> {purchase.supplier}</div>
                       <div><strong>Date:</strong> {purchase.date}</div>
                       <div><strong>Invoice:</strong> {purchase.invoiceNumber}</div>
-                      <div><strong>Total:</strong> <span className="font-semibold text-blue-600">${purchase.total.toFixed(2)}</span></div>
+                      <div><strong>Total:</strong> <span className="font-semibold text-blue-600">₹{purchase.total.toFixed(2)}</span></div>
                     </div>
                     <div className="mt-2">
                       <div className="text-sm text-gray-600">

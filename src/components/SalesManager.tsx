@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,13 +9,15 @@ import { Plus, Search, Eye, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Customer } from "./CustomerManager";
+import { Product } from "./ProductManager";
 
 interface SalesManagerProps {
   customers: Customer[];
+  products: Product[];
   onUpdateCustomer: (customer: Customer) => void;
 }
 
-const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
+const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerProps) => {
   const [sales, setSales] = useState([
     {
       id: "INV-001",
@@ -23,8 +26,8 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
       customerName: customers[0]?.name || "ABC Corporation",
       customerEmail: customers[0]?.email || "contact@abc.com",
       items: [
-        { name: "Product A", quantity: 5, rate: 10000, amount: 50000 },
-        { name: "Product B", quantity: 3, rate: 25000, amount: 75000 }
+        { name: "Product A", size: "500ml", quantity: 5, rate: 10000, amount: 50000 },
+        { name: "Product B", size: "1kg", quantity: 3, rate: 25000, amount: 75000 }
       ],
       subtotal: 125000,
       tax: 12500,
@@ -40,8 +43,8 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
       customerName: customers[1]?.name || "Tech Solutions Ltd",
       customerEmail: customers[1]?.email || "info@techsolutions.com",
       items: [
-        { name: "Product C", quantity: 10, rate: 15000, amount: 150000 },
-        { name: "Product D", quantity: 2, rate: 30000, amount: 60000 }
+        { name: "Product C", size: "2L", quantity: 10, rate: 15000, amount: 150000 },
+        { name: "Product D", size: "Large", quantity: 2, rate: 30000, amount: 60000 }
       ],
       subtotal: 210000,
       tax: 21000,
@@ -55,21 +58,37 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newSale, setNewSale] = useState({
     customerId: "",
-    items: [{ name: "", quantity: 1, rate: 0 }],
+    items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
     paidAmount: 0
   });
 
   const addItem = () => {
     setNewSale({
       ...newSale,
-      items: [...newSale.items, { name: "", quantity: 1, rate: 0 }]
+      items: [...newSale.items, { productId: "", name: "", size: "", quantity: 1, rate: 0 }]
     });
   };
 
   const updateItem = (index: number, field: string, value: any) => {
-    const updatedItems = newSale.items.map((item, i) => 
-      i === index ? { ...item, [field]: value } : item
-    );
+    const updatedItems = newSale.items.map((item, i) => {
+      if (i === index) {
+        if (field === 'productId') {
+          // Auto-fill product details when product is selected
+          const selectedProduct = products.find(p => p.id === value);
+          if (selectedProduct) {
+            return {
+              ...item,
+              productId: value,
+              name: selectedProduct.name,
+              size: selectedProduct.size,
+              rate: selectedProduct.rate
+            };
+          }
+        }
+        return { ...item, [field]: value };
+      }
+      return item;
+    });
     setNewSale({ ...newSale, items: updatedItems });
   };
 
@@ -93,7 +112,10 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
       customerName: customer.name,
       customerEmail: customer.email,
       items: newSale.items.map(item => ({
-        ...item,
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        rate: item.rate,
         amount: item.quantity * item.rate
       })),
       subtotal,
@@ -116,7 +138,7 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
 
     setNewSale({
       customerId: "",
-      items: [{ name: "", quantity: 1, rate: 0 }],
+      items: [{ productId: "", name: "", size: "", quantity: 1, rate: 0 }],
       paidAmount: 0
     });
   };
@@ -174,13 +196,32 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
                 </div>
 
                 {newSale.items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg">
                     <div>
-                      <Label>Product Name</Label>
+                      <Label>Select Product</Label>
+                      <Select 
+                        value={item.productId} 
+                        onValueChange={(value) => updateItem(index, 'productId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - {product.size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Size</Label>
                       <Input
-                        value={item.name}
-                        onChange={(e) => updateItem(index, 'name', e.target.value)}
-                        placeholder="Product name"
+                        value={item.size}
+                        disabled
+                        className="bg-gray-50"
+                        placeholder="Auto-filled"
                       />
                     </div>
                     <div>
@@ -197,9 +238,9 @@ const SalesManager = ({ customers, onUpdateCustomer }: SalesManagerProps) => {
                       <Input
                         type="number"
                         value={item.rate}
-                        onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                        step="0.01"
-                        min="0"
+                        disabled
+                        className="bg-gray-50"
+                        placeholder="Auto-filled"
                       />
                     </div>
                     <div>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +16,8 @@ import {
   Eye,
   Download,
   Users,
-  CreditCard
+  CreditCard,
+  Box
 } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import SalesManager from "@/components/SalesManager";
@@ -27,6 +27,7 @@ import BillGenerator from "@/components/BillGenerator";
 import ReportsManager from "@/components/ReportsManager";
 import CustomerManager, { Customer } from "@/components/CustomerManager";
 import PaymentManager, { Payment } from "@/components/PaymentManager";
+import ProductManager, { Product } from "@/components/ProductManager";
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -69,6 +70,40 @@ const Index = () => {
     }
   ]);
 
+  // Add products state management
+  const [products, setProducts] = useState<Product[]>([
+    {
+      id: "PROD-001",
+      name: "Premium Rice",
+      size: "25kg",
+      rate: 1500
+    },
+    {
+      id: "PROD-002",
+      name: "Wheat Flour",
+      size: "10kg",
+      rate: 450
+    },
+    {
+      id: "PROD-003",
+      name: "Cooking Oil",
+      size: "5L",
+      rate: 650
+    },
+    {
+      id: "PROD-004",
+      name: "Sugar",
+      size: "1kg",
+      rate: 45
+    },
+    {
+      id: "PROD-005",
+      name: "Tea Leaves",
+      size: "500g",
+      rate: 280
+    }
+  ]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Simple demo login - in production, this would connect to your authentication system
@@ -102,6 +137,20 @@ const Index = () => {
       }
       return customer;
     }));
+  };
+
+  const handleAddProduct = (product: Product) => {
+    setProducts([product, ...products]);
+  };
+
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    setProducts(products.map(product => 
+      product.id === updatedProduct.id ? updatedProduct : product
+    ));
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    setProducts(products.filter(product => product.id !== productId));
   };
 
   if (!isLoggedIn) {
@@ -171,10 +220,14 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8 bg-white p-1 rounded-lg shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 bg-white p-1 rounded-lg shadow-sm">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="products" className="flex items-center gap-2">
+              <Box className="h-4 w-4" />
+              <span className="hidden sm:inline">Products</span>
             </TabsTrigger>
             <TabsTrigger value="customers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -210,6 +263,15 @@ const Index = () => {
             <Dashboard customers={customers} payments={payments} />
           </TabsContent>
 
+          <TabsContent value="products">
+            <ProductManager 
+              products={products}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+            />
+          </TabsContent>
+
           <TabsContent value="customers">
             <CustomerManager 
               customers={customers} 
@@ -219,11 +281,15 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="sales">
-            <SalesManager customers={customers} onUpdateCustomer={handleUpdateCustomer} />
+            <SalesManager 
+              customers={customers} 
+              products={products}
+              onUpdateCustomer={handleUpdateCustomer} 
+            />
           </TabsContent>
 
           <TabsContent value="purchases">
-            <PurchaseManager />
+            <PurchaseManager products={products} />
           </TabsContent>
 
           <TabsContent value="inventory">
