@@ -1,16 +1,17 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, Package, TrendingUp, Users, CreditCard } from "lucide-react";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Customer } from "./CustomerManager";
 import { Payment } from "./PaymentManager";
+import { Sale } from "@/pages/Index";
 
 interface DashboardProps {
   customers: Customer[];
   payments: Payment[];
+  sales: Sale[];
 }
 
-const Dashboard = ({ customers, payments }: DashboardProps) => {
+const Dashboard = ({ customers, payments, sales }: DashboardProps) => {
   // Mock data - in production, this would come from your database
   const salesData = [
     { month: "Jan", sales: 450000, purchases: 250000 },
@@ -32,6 +33,7 @@ const Dashboard = ({ customers, payments }: DashboardProps) => {
   const totalOutstanding = customers.reduce((sum, customer) => sum + customer.outstandingBalance, 0);
   const totalPaymentsThisMonth = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const totalCustomers = customers.length;
+  const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
 
   return (
     <div className="space-y-6">
@@ -43,9 +45,9 @@ const Dashboard = ({ customers, payments }: DashboardProps) => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">₹6,70,000</div>
+            <div className="text-2xl font-bold text-green-600">₹{totalSales.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +12% from last month
+              From {sales.length} transactions
             </p>
           </CardContent>
         </Card>
@@ -94,18 +96,17 @@ const Dashboard = ({ customers, payments }: DashboardProps) => {
         {/* Sales Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Sales vs Purchases</CardTitle>
-            <CardDescription>Monthly comparison for the last 6 months (₹)</CardDescription>
+            <CardTitle>Sales Trend</CardTitle>
+            <CardDescription>Recent sales transactions (₹)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
+              <BarChart data={sales.slice(-6).map(sale => ({ month: sale.date, sales: sale.total }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip formatter={(value: any) => [`₹${value.toLocaleString()}`, ""]} />
                 <Bar dataKey="sales" fill="#22c55e" name="Sales" />
-                <Bar dataKey="purchases" fill="#3b82f6" name="Purchases" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -287,7 +286,7 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 bg-white p-1 rounded-lg shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-white p-1 rounded-lg shadow-sm">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -311,10 +310,6 @@ const Index = () => {
             <TabsTrigger value="bills" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Bills</span>
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Reports</span>
             </TabsTrigger>
           </TabsList>
 
@@ -361,11 +356,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="bills">
-            <BillGenerator customers={customers} products={products} />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <ReportsManager customers={customers} sales={sales} payments={payments} />
+            <BillGenerator />
           </TabsContent>
         </Tabs>
       </main>
