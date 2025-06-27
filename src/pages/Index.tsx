@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,12 +21,32 @@ import {
 } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import SalesManager from "@/components/SalesManager";
-import InventoryManager from "@/components/InventoryManager";
 import BillGenerator from "@/components/BillGenerator";
 import ReportsManager from "@/components/ReportsManager";
 import CustomerManager, { Customer } from "@/components/CustomerManager";
 import PaymentManager, { Payment } from "@/components/PaymentManager";
 import ProductManager, { Product } from "@/components/ProductManager";
+
+export interface Sale {
+  id: string;
+  date: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  items: Array<{
+    name: string;
+    size: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+  }>;
+  subtotal: number;
+  transport: number;
+  total: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  status: 'paid' | 'partial' | 'unpaid';
+}
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -65,6 +86,44 @@ const Index = () => {
       paymentMethod: "upi",
       date: "2024-06-20",
       notes: "Partial payment for order #123"
+    }
+  ]);
+
+  // Add sales state with transport charges
+  const [sales, setSales] = useState<Sale[]>([
+    {
+      id: "INV-001",
+      date: "2024-06-20",
+      customerId: "CUST-001",
+      customerName: "ABC Corporation",
+      customerEmail: "contact@abc.com",
+      items: [
+        { name: "Premium Rice", size: "25kg", quantity: 5, rate: 1500, amount: 7500 },
+        { name: "Wheat Flour", size: "10kg", quantity: 3, rate: 450, amount: 1350 }
+      ],
+      subtotal: 8850,
+      transport: 500,
+      total: 9350,
+      paidAmount: 5000,
+      outstandingAmount: 4350,
+      status: "partial"
+    },
+    {
+      id: "INV-002", 
+      date: "2024-06-19",
+      customerId: "CUST-002",
+      customerName: "Tech Solutions Ltd",
+      customerEmail: "info@techsolutions.com",
+      items: [
+        { name: "Cooking Oil", size: "5L", quantity: 10, rate: 650, amount: 6500 },
+        { name: "Sugar", size: "1kg", quantity: 20, rate: 45, amount: 900 }
+      ],
+      subtotal: 7400,
+      transport: 300,
+      total: 7700,
+      paidAmount: 7700,
+      outstandingAmount: 0,
+      status: "paid"
     }
   ]);
 
@@ -151,6 +210,16 @@ const Index = () => {
     setProducts(products.filter(product => product.id !== productId));
   };
 
+  const handleAddSale = (sale: Sale) => {
+    setSales([sale, ...sales]);
+  };
+
+  const handleUpdateSale = (updatedSale: Sale) => {
+    setSales(sales.map(sale => 
+      sale.id === updatedSale.id ? updatedSale : sale
+    ));
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -218,7 +287,7 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-8 bg-white p-1 rounded-lg shadow-sm">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 bg-white p-1 rounded-lg shadow-sm">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -235,10 +304,6 @@ const Index = () => {
               <DollarSign className="h-4 w-4" />
               <span className="hidden sm:inline">Sales</span>
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Inventory</span>
-            </TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Payments</span>
@@ -254,7 +319,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <Dashboard customers={customers} payments={payments} />
+            <Dashboard customers={customers} payments={payments} sales={sales} />
           </TabsContent>
 
           <TabsContent value="products">
@@ -272,6 +337,7 @@ const Index = () => {
               onAddCustomer={handleAddCustomer}
               onUpdateCustomer={handleUpdateCustomer}
               payments={payments}
+              sales={sales}
             />
           </TabsContent>
 
@@ -279,12 +345,11 @@ const Index = () => {
             <SalesManager 
               customers={customers} 
               products={products}
-              onUpdateCustomer={handleUpdateCustomer} 
+              sales={sales}
+              onUpdateCustomer={handleUpdateCustomer}
+              onAddSale={handleAddSale}
+              onUpdateSale={handleUpdateSale}
             />
-          </TabsContent>
-
-          <TabsContent value="inventory">
-            <InventoryManager />
           </TabsContent>
 
           <TabsContent value="payments">
@@ -296,11 +361,11 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="bills">
-            <BillGenerator />
+            <BillGenerator customers={customers} products={products} />
           </TabsContent>
 
           <TabsContent value="reports">
-            <ReportsManager />
+            <ReportsManager customers={customers} sales={sales} payments={payments} />
           </TabsContent>
         </Tabs>
       </main>

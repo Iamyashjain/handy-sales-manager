@@ -5,56 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, FileText } from "lucide-react";
+import { Plus, Search, Eye, FileText, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Customer } from "./CustomerManager";
 import { Product } from "./ProductManager";
+import { Sale } from "@/pages/Index";
 
 interface SalesManagerProps {
   customers: Customer[];
   products: Product[];
+  sales: Sale[];
   onUpdateCustomer: (customer: Customer) => void;
+  onAddSale: (sale: Sale) => void;
+  onUpdateSale: (sale: Sale) => void;
 }
 
-const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerProps) => {
-  const [sales, setSales] = useState([
-    {
-      id: "INV-001",
-      date: "2024-06-20",
-      customerId: customers[0]?.id || "CUST-001",
-      customerName: customers[0]?.name || "ABC Corporation",
-      customerEmail: customers[0]?.email || "contact@abc.com",
-      items: [
-        { name: "Product A", size: "500ml", quantity: 5, rate: 10000, amount: 50000 },
-        { name: "Product B", size: "1kg", quantity: 3, rate: 25000, amount: 75000 }
-      ],
-      subtotal: 125000,
-      transport: 5000,
-      total: 130000,
-      paidAmount: 115000,
-      outstandingAmount: 15000,
-      status: "partial"
-    },
-    {
-      id: "INV-002", 
-      date: "2024-06-19",
-      customerId: customers[1]?.id || "CUST-002",
-      customerName: customers[1]?.name || "Tech Solutions Ltd",
-      customerEmail: customers[1]?.email || "info@techsolutions.com",
-      items: [
-        { name: "Product C", size: "2L", quantity: 10, rate: 15000, amount: 150000 },
-        { name: "Product D", size: "Large", quantity: 2, rate: 30000, amount: 60000 }
-      ],
-      subtotal: 210000,
-      transport: 2000,
-      total: 212000,
-      paidAmount: 212000,
-      outstandingAmount: 0,
-      status: "paid"
-    }
-  ]);
-
+const SalesManager = ({ customers, products, sales, onUpdateCustomer, onAddSale, onUpdateSale }: SalesManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newSale, setNewSale] = useState({
     customerId: "",
@@ -63,8 +30,10 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
     paidAmount: 0
   });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewingSale, setViewingSale] = useState(null);
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [printingSale, setPrintingSale] = useState<Sale | null>(null);
 
   const addItem = () => {
     setNewSale({
@@ -108,7 +77,7 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
 
     const outstandingAmount = total - newSale.paidAmount;
     
-    const sale = {
+    const sale: Sale = {
       id: `INV-${String(sales.length + 1).padStart(3, '0')}`,
       date: new Date().toISOString().split('T')[0],
       customerId: newSale.customerId,
@@ -126,10 +95,10 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
       total,
       paidAmount: newSale.paidAmount,
       outstandingAmount,
-      status: outstandingAmount > 0 ? "partial" : "paid"
+      status: outstandingAmount > 0 ? (newSale.paidAmount > 0 ? "partial" : "unpaid") : "paid"
     };
     
-    setSales([sale, ...sales]);
+    onAddSale(sale);
 
     const updatedCustomer = {
       ...customer,
@@ -137,6 +106,10 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
       outstandingBalance: customer.outstandingBalance + outstandingAmount
     };
     onUpdateCustomer(updatedCustomer);
+
+    // Auto-show print dialog
+    setPrintingSale(sale);
+    setIsPrintDialogOpen(true);
 
     setNewSale({
       customerId: "",
@@ -147,13 +120,17 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
     setIsAddDialogOpen(false);
   };
 
-  const viewSale = (sale) => {
+  const viewSale = (sale: Sale) => {
     setViewingSale(sale);
     setIsViewDialogOpen(true);
   };
 
-  const downloadInvoice = (sale) => {
-    // Generate and download invoice PDF
+  const printInvoice = (sale: Sale) => {
+    setPrintingSale(sale);
+    setIsPrintDialogOpen(true);
+  };
+
+  const downloadInvoice = (sale: Sale) => {
     console.log("Downloading invoice for:", sale.id);
     alert(`Invoice ${sale.id} would be downloaded as PDF`);
   };
@@ -161,6 +138,98 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
   const filteredSales = sales.filter(sale => 
     sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sale.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Invoice Template Component
+  const InvoiceTemplate = ({ sale }: { sale: Sale }) => (
+    <div className="bg-white p-8 max-w-4xl mx-auto" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Header */}
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-blue-900 mb-2">Your Business Name</h1>
+          <div className="text-gray-600">
+            <p>123 Business Street, City, State 12345</p>
+            <p>Phone: (555) 123-4567</p>
+            <p>Email: info@yourbusiness.com</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">INVOICE</h2>
+          <div className="text-gray-600">
+            <p><strong>Invoice #:</strong> {sale.id}</p>
+            <p><strong>Date:</strong> {sale.date}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bill To */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">Bill To:</h3>
+        <div className="bg-gray-50 p-4 rounded">
+          <p className="font-semibold">{sale.customerName}</p>
+          <p>{sale.customerEmail}</p>
+        </div>
+      </div>
+
+      {/* Items Table */}
+      <div className="mb-8">
+        <table className="w-full border-collapse border border-gray-300">
+          <thead>
+            <tr className="bg-blue-50">
+              <th className="border border-gray-300 p-3 text-left">Description</th>
+              <th className="border border-gray-300 p-3 text-center">Qty</th>
+              <th className="border border-gray-300 p-3 text-right">Rate</th>
+              <th className="border border-gray-300 p-3 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sale.items.map((item, index) => (
+              <tr key={index}>
+                <td className="border border-gray-300 p-3">{item.name} - {item.size}</td>
+                <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
+                <td className="border border-gray-300 p-3 text-right">₹{item.rate.toFixed(2)}</td>
+                <td className="border border-gray-300 p-3 text-right">₹{item.amount.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Totals */}
+      <div className="flex justify-end mb-8">
+        <div className="w-64">
+          <div className="flex justify-between py-2 border-b">
+            <span>Subtotal:</span>
+            <span>₹{sale.subtotal.toFixed(2)}</span>
+          </div>
+          {sale.transport > 0 && (
+            <div className="flex justify-between py-2 border-b">
+              <span>Transport:</span>
+              <span>₹{sale.transport.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between py-3 border-b-2 border-gray-400 font-bold text-lg">
+            <span>Total:</span>
+            <span>₹{sale.total.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between py-2 text-green-600">
+            <span>Paid:</span>
+            <span>₹{sale.paidAmount.toFixed(2)}</span>
+          </div>
+          {sale.outstandingAmount > 0 && (
+            <div className="flex justify-between py-2 text-red-600 font-bold">
+              <span>Outstanding:</span>
+              <span>₹{sale.outstandingAmount.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-gray-600">
+        <p>Thank you for your business!</p>
+      </div>
+    </div>
   );
 
   return (
@@ -359,10 +428,13 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                       <div><strong>Date:</strong> {sale.date}</div>
                       <div><strong>Total:</strong> <span className="font-semibold text-green-600">₹{sale.total.toLocaleString()}</span></div>
                     </div>
-                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                       <div><strong>Paid:</strong> <span className="text-green-600">₹{sale.paidAmount.toLocaleString()}</span></div>
                       {sale.outstandingAmount > 0 && (
                         <div><strong>Outstanding:</strong> <span className="text-red-600">₹{sale.outstandingAmount.toLocaleString()}</span></div>
+                      )}
+                      {sale.transport > 0 && (
+                        <div><strong>Transport:</strong> <span className="text-blue-600">₹{sale.transport.toLocaleString()}</span></div>
                       )}
                     </div>
                     <div className="mt-2">
@@ -376,9 +448,13 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => printInvoice(sale)}>
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => downloadInvoice(sale)}>
                       <FileText className="h-4 w-4 mr-2" />
-                      Invoice
+                      Download
                     </Button>
                   </div>
                 </div>
@@ -467,6 +543,29 @@ const SalesManager = ({ customers, products, onUpdateCustomer }: SalesManagerPro
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Invoice Dialog */}
+      <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice - {printingSale?.id}</DialogTitle>
+          </DialogHeader>
+          {printingSale && <InvoiceTemplate sale={printingSale} />}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Invoice
+            </Button>
+            <Button onClick={() => downloadInvoice(printingSale!)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
